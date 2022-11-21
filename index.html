@@ -76,12 +76,10 @@
 		</div>
 	</div>
     <script>
-	const homeUri = "https://andmed.z1.web.core.windows.net";
 	const authServerEndpoint = "https://identity.skoda.vwgroup.com/realms/standard/protocol/openid-connect/";
 	const apiEndpoint = "https://keycloak-portal-backend20221121150842.azurewebsites.net/";
 	const clientId = "demo_code";
  
-	
 	var access_token;
 	var refresh_token;
 	var id_token;
@@ -111,12 +109,10 @@
 						
 						await fetchClients();
 						await fetchApplications();
-
                     }
                     else {
                         access_token = "Error: " + response.error_description + " (" + response.error + ")";
                     }
-
                 };
 
                 xhr.responseType = 'json';
@@ -343,9 +339,6 @@
 
 					const result = await response.text();
 				}
-
-					
-			
 
 			}
 
