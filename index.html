@@ -1,0 +1,420 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <title>Identity Provider registration</title>
+	<link rel="stylesheet" href="sakura.css" type="text/css">
+  </head>
+  <body>
+    <h1>Identity Provider registration</h1>
+	</br>
+	<button id="loginButton">Log in</button>
+	<button id="logoutButton" style="display:none;">Log out</button>
+	</br>
+	</br>
+	<hr>
+	<div id="myRegistrationsDiv"  style="display:none;">
+		<h2>My registrations</h2>
+		</br>
+		<table id="tableRegistrations">
+			<tr>
+				<th></th>
+				<th>Application</th>
+				<th>ClientId</th>
+				<th>Name</th>
+				<th>Protocol</th>
+				<th>Authentication</th>
+				<th>Redirect Urls</th>
+			</tr>
+		</table>
+		<div id="RegDelDiv" style="display:none;">
+		</br>
+			<button id="tableRegistrations_delete" onClick="deleteClient()">Delete selected registration</button>
+		</div>
+	</div>
+	</br>
+	<div id="NewRegistrationDiv"  style="display:none;">
+		<hr>
+		<h2>New registration</h2>
+		</br>
+		<div>
+			<label for="reg_apps">Select application to register</label>
+			<select id="reg_apps" onchange="ApplicationSelected(this)">
+				<option value="">--Please choose an option--</option>
+			</select>
+		</div>
+		<div id="ProtocolDiv" style="display:none;">
+			<label for="reg_protocol">Select protocol</label>
+			<select id="reg_protocol" onchange="RegistrationProtocolSelect(this)">
+				<option value="">--Please choose an option--</option>
+				<option value="code">OIDC Authorization code + PKCE</option>
+				<option value="cred">OAuth/2 Client credentials</option>
+				<option value="saml">SAML</option>
+			</select>
+		</div>
+		<div id="reg_redirect_div" style="display:none;">
+			<label for="reg_redirect">Redirect url</label>
+			<input type="text" id="reg_redirect" placeholder="https://portal.skoda-auto.com/callback*, vwg.skoda.oneapp">
+		</div>
+		<div id="reg_cert_div" style="display:none;">
+			<label for="reg_cert">Application certificate DN</label>
+			<input type="text" id="reg_cert">
+		</div>
+		<div id="reg_auth_div" style="display:none;">
+			<label for="reg_auth">Authentication method</label>
+			<select id="reg_auth">
+				<option value="">--Please choose an option--</option>
+				<option value="pki">Strong (PKI only)</option>
+				<option value="mfa">Medium (PKI or Virtual SmartCard or Username + Password + TOTP)</option>
+				<option value="sfa">Weak (Username + Password)</option>
+				<option value="mdm">Internal mobile apps (MDM cert)</option>
+			</select>
+		</div>
+		</br>
+		<div id="RegAddDiv" style="display:none;">
+			<button id="reg_add" onClick="createClient(this)">Create new registration</button>
+		</div>
+	</div>
+    <script>
+	const homeUri = "https://andmed.z1.web.core.windows.net";
+	const authServerEndpoint = "https://identity.skoda.vwgroup.com/realms/standard/protocol/openid-connect/";
+	const apiEndpoint = "https://keycloak-portal-backend20221121150842.azurewebsites.net/";
+	const clientId = "demo_code";
+ 
+	var access_token;
+	var refresh_token;
+	var id_token;
+	var token_issued_time;
+	
+        if (window.location.search) {
+            var args = new URLSearchParams(window.location.search);
+            var code = args.get("code");
+
+            if (code) {
+                var xhr = new XMLHttpRequest();
+
+                xhr.onload = async function() {
+                    var response = xhr.response;
+
+                    if (xhr.status == 200) {
+						token_issued_time = Date.now();
+						access_token = atob(response.access_token.split('.')[1]);
+						window.sessionStorage.setItem("accessToken", response.access_token);
+
+						refresh_token = atob(response.refresh_token.split('.')[1]);
+						window.sessionStorage.setItem("refreshToken", response.refresh_token);
+						id_token = response.id_token;
+
+						var id_token_string = atob(response.id_token.split('.')[1]);
+						document.getElementById('logoutButton').style.display = 'inline';
+						
+						await fetchClients();
+						await fetchApplications();
+
+                    }
+                    else {
+                        access_token = "Error: " + response.error_description + " (" + response.error + ")";
+                    }
+
+                };
+
+                xhr.responseType = 'json';
+                xhr.open("POST", authServerEndpoint + "token", true);
+                xhr.setRequestHeader('Content-type', 'application/x-www-form-urlencoded');
+                xhr.send(new URLSearchParams({
+                    client_id: clientId,
+                    code_verifier: window.sessionStorage.getItem("code_verifier"),
+                    grant_type: "authorization_code",
+                    redirect_uri: location.href.replace(location.search, ''),
+                    code: code
+                }));
+            }
+        }
+
+        document.getElementById("loginButton").onclick = function() {
+            var codeVerifier = generateRandomString(64);
+
+            const challengeMethod = crypto.subtle ? "S256" : "plain"
+
+            Promise.resolve()
+                .then(() => {
+                    if (challengeMethod === 'S256') {
+                        return generateCodeChallenge(codeVerifier)
+                    } else {
+                        return codeVerifier
+                    }
+                })
+                .then(function(codeChallenge) {
+                    window.sessionStorage.setItem("code_verifier", codeVerifier);
+
+                    var redirectUri = window.location.href.split('?')[0];
+                    var args = new URLSearchParams({
+                        response_type: "code",
+                        client_id: clientId,
+						scope: "openid profile email",
+						acr_values: 1, 
+                        code_challenge_method: challengeMethod,
+                        code_challenge: codeChallenge,
+                        redirect_uri: redirectUri
+                    });
+                window.location = authServerEndpoint + "auth/?" + args;
+            });
+        }
+
+        async function generateCodeChallenge(codeVerifier) {
+            var digest = await crypto.subtle.digest("SHA-256",
+                new TextEncoder().encode(codeVerifier));
+
+            return btoa(String.fromCharCode(...new Uint8Array(digest)))
+                .replace(/=/g, '').replace(/\+/g, '-').replace(/\//g, '_')
+        }
+
+        function generateRandomString(length) {
+            var text = "";
+            var possible = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
+
+            for (var i = 0; i < length; i++) {
+                text += possible.charAt(Math.floor(Math.random() * possible.length));
+            }
+            return text;
+        }
+
+		document.getElementById("logoutButton").onclick = function() {
+			window.location = authServerEndpoint + "logout?id_token_hint=" + id_token;
+		}
+
+		async function refreshToken() 
+		{
+			let access_token_age = (Date.now() - token_issued_time) / 1000;
+			
+			if(access_token_age > 200)
+			{
+				const response = await fetch(window.sessionStorage.getItem("authServerEndpoint") + "token",
+				{
+					method: "POST",
+					headers: {"Content-type": "application/x-www-form-urlencoded"},
+					body: new URLSearchParams({
+							client_id: clientId,
+							refresh_token: window.sessionStorage.getItem("refreshToken"),
+							grant_type: "refresh_token"
+						})
+				});
+
+				if (!response.ok) {
+					throw new Error(`HTTP error! status: ${response.status}`);
+				}
+
+				const data = await response.json();
+				window.sessionStorage.setItem("accessToken", data.access_token);
+			}
+			return true;
+		}
+
+
+		async function fetchClients() 
+		{
+			let refresh = await refreshToken();
+			const response = await fetch(apiEndpoint + "clients",
+			{
+				method: "GET",
+				headers: {"Content-type": "application/json", "Ocp-Apim-Subscription-Key": "763951daeda74b589839b5aa605e02f6", "Authorization": "Bearer " + window.sessionStorage.getItem("accessToken")}
+			});
+
+			if (!response.ok) {
+				throw new Error(`HTTP error! status: ${response.status}`);
+			}
+
+			const clients = await response.json();
+
+			let regsTable = document.querySelector("#tableRegistrations");
+			
+			while(regsTable.rows[1]) regsTable.deleteRow(1);
+
+			clients.forEach(item => 
+				{
+					let tBox = document.createElement('input');
+					tBox.setAttribute('type', 'checkbox');
+                    tBox.setAttribute('value', 'false');
+					tBox.setAttribute('name', 'checkReg');
+					tBox.onclick = function (){
+						if(this.checked)
+						{
+							document.getElementById('RegDelDiv').style.display = 'block';
+						}
+						else{
+							document.getElementById('RegDelDiv').style.display = 'none';
+						}						
+					};
+
+					var row = regsTable.insertRow();
+					let cell0 = row.insertCell(0);
+					cell0.appendChild(tBox);
+
+					let cell1 = row.insertCell(1).innerHTML = item.application;
+					let cell2 = row.insertCell(2).innerHTML = item.clientId;
+					let cell3 = row.insertCell(3).innerHTML = item.name;
+					let cell4 = row.insertCell(4).innerHTML = item.protocol;
+					let cell5 = row.insertCell(5).innerHTML = item.flow;
+					let cell6 = row.insertCell(6).innerHTML = item.redirectUris;
+				});
+
+				document.getElementById('myRegistrationsDiv').style.display = 'block';
+		}
+
+		async function fetchApplications() 
+		{
+			let refresh = await refreshToken();
+			const response = await fetch(apiEndpoint + "applications",
+			{
+				method: "GET",
+				headers: {"Content-type": "application/json", "Ocp-Apim-Subscription-Key": "763951daeda74b589839b5aa605e02f6", "Authorization": "Bearer " + window.sessionStorage.getItem("accessToken")}
+			});
+
+			if (!response.ok) {
+				throw new Error(`HTTP error! status: ${response.status}`);
+			}
+			const applications = await response.json();
+
+			let apps_select = document.getElementById("reg_apps");
+			
+			applications.forEach(item => 
+				{
+					let option = document.createElement('option');
+                    option.value = item;
+					option.text = item;
+
+					apps_select.add(option);
+				});
+
+				document.getElementById('NewRegistrationDiv').style.display = 'block';
+		}
+
+		async function createClient()
+		{
+
+			const redirArray = new Array(document.getElementById("reg_redirect").value);
+
+			var data = {
+				application: document.getElementById("reg_apps").value,
+				protocol: document.getElementById("reg_protocol").value,
+				redirectUris: document.getElementById("reg_redirect").value.split(","),
+				flow: document.getElementById("reg_auth").value,
+			};
+
+			let refresh = await refreshToken();
+			const response = await fetch(apiEndpoint + "clients",
+			{
+				method: "POST",
+				headers: {"Content-type": "application/json", "Ocp-Apim-Subscription-Key": "763951daeda74b589839b5aa605e02f6", "Authorization": "Bearer " + window.sessionStorage.getItem("accessToken")},
+				body: JSON.stringify(data)
+			});
+
+			if (!response.ok) {
+				throw new Error(`HTTP error! status: ${response.status}`);
+			}
+
+			const result = await response.text()
+			await fetchClients();
+		}
+
+
+		async function deleteClient()
+		{
+			let refresh = await refreshToken();
+
+			let regsTable = document.querySelector("#tableRegistrations");
+			for (let row of regsTable.rows) 
+			{
+				let checkbox = row.cells[0].firstElementChild;
+				if (row.rowIndex != 0 && checkbox.checked == true) 
+				{ 
+					let clientid = row.cells[2].innerHTML;
+				
+					const response = await fetch(apiEndpoint + "clients/" + clientid,
+					{
+						method: "DELETE",
+						headers: {"Content-type": "application/json", "Ocp-Apim-Subscription-Key": "763951daeda74b589839b5aa605e02f6", "Authorization": "Bearer " + window.sessionStorage.getItem("accessToken")}
+					});
+
+					if (!response.ok) {
+						throw new Error(`HTTP error! status: ${response.status}`);
+					}
+
+					const result = await response.text();
+				}
+
+					
+			
+
+			}
+
+			await fetchClients();
+		}
+
+		function RegistrationProtocolSelect(protocol) {
+			//var selTex = protocol.options[protocol.selectedIndex].innerHTML;
+			var selVal = protocol.value;
+			if(selVal == "code")
+			{
+				document.getElementById('reg_redirect_div').style.display = 'block';
+				document.getElementById('reg_auth_div').style.display = 'block';
+				document.getElementById('reg_cert_div').style.display = 'none';
+				
+				document.getElementById('RegAddDiv').style.display = 'block';
+
+				reg_auth_div
+			}
+
+			if(selVal == "cred")
+			{
+				document.getElementById('reg_redirect_div').style.display = 'none';
+				document.getElementById('reg_auth_div').style.display = 'none';
+				document.getElementById('reg_cert_div').style.display = 'block';
+
+				document.getElementById('RegAddDiv').style.display = 'block';
+			}
+
+			if(selVal == "saml")
+			{
+				document.getElementById('reg_redirect_div').style.display = 'none';
+				document.getElementById('reg_auth_div').style.display = 'block';
+				document.getElementById('reg_cert_div').style.display = 'none';
+
+				document.getElementById('RegAddDiv').style.display = 'block';
+			}
+
+			if(selVal == "")
+			{
+				document.getElementById('reg_redirect_div').style.display = 'none';
+				document.getElementById('reg_auth_div').style.display = 'none';
+				document.getElementById('reg_cert_div').style.display = 'none';
+
+				document.getElementById('RegAddDiv').style.display = 'none';
+			}
+
+			//alert("Selected Text: " + selTex + " Value: " + selVal);
+		}
+
+		function ApplicationSelected(application) {
+			var selVal = application.value;
+
+
+			if(selVal == "")
+			{
+				document.getElementById('ProtocolDiv').style.display = 'none';
+				document.getElementById('reg_redirect_div').style.display = 'none';
+				document.getElementById('reg_auth_div').style.display = 'none';
+				document.getElementById('reg_cert_div').style.display = 'none';
+				document.getElementById('RegAddDiv').style.display = 'none';
+			}
+			else
+			{
+				document.getElementById('ProtocolDiv').style.display = 'block';
+			}
+		}
+
+
+
+    </script>
+  </body>
+</html>
