@@ -6,21 +6,20 @@
 	<link rel="stylesheet" href="sakura.css" type="text/css">
   </head>
   <body>
-    <h1>Identity Provider registration</h1>
+	<header>
+  <button id="logoutButton" style="display:none;float:right;background-color:#ff00009b;border: 0px;">Log out</button>
+		<button id="loginButton" style="float:right;background-color:#a9f9b0;">Log in</button>
+	  </header> 
+    <h1 style="color:#263b32;">Identity Provider registration</h1>
 	</br>
-	<button id="loginButton">Log in</button>
-	<button id="logoutButton" style="display:none;">Log out</button>
-	</br>
-	</br>
-	<hr>
-	<div id="myRegistrationsDiv"  style="display:none;">
+	<div id="myRegistrationsDiv"  style="display:none;background-color:#263b32;border-radius:25px;border: 0px;padding: 25px 25px 35px 25px;">
 		<h2>My registrations</h2>
 		</br>
 		<table id="tableRegistrations">
 			<tr>
 				<th></th>
 				<th>Application</th>
-				<th>ClientId</th>
+				<th>Client Id</th>
 				<th>Name</th>
 				<th>Protocol</th>
 				<th>Authentication</th>
@@ -31,42 +30,43 @@
 		</br>
 			<button id="tableRegistrations_delete" onClick="deleteClient()">Delete selected registration</button>
 		</div>
+	</br>
 	</div>
 	</br>
-	<div id="NewRegistrationDiv"  style="display:none;">
-		<hr>
+	</br>
+	<div id="NewRegistrationDiv"  style="display:none;background-color:#263b32;border-radius: 25px;border: 0px;padding: 25px 25px 35px 25px;">
 		<h2>New registration</h2>
 		</br>
 		<div>
-			<label for="reg_apps">Select application to register</label>
-			<select id="reg_apps" onchange="ApplicationSelected(this)">
+			<label for="reg_apps">Select an application to register</label>
+			<select id="reg_apps" onchange="ApplicationSelected(this)" style="width:300px;">
 				<option value="">--Please choose an option--</option>
 			</select>
 		</div>
 		<div id="ProtocolDiv" style="display:none;">
+			<div >
+				<label for="reg_name">User friendly name</label>
+				<input type="text" id="reg_name" size="60" placeholder="MyŠkoda App">
+			</div>
 			<label for="reg_protocol">Select protocol</label>
-			<select id="reg_protocol" onchange="RegistrationProtocolSelect(this)">
+			<select id="reg_protocol" onchange="RegistrationProtocolSelect(this)" style="width:300px;">
 				<option value="">--Please choose an option--</option>
 				<option value="code">OIDC Authorization code + PKCE</option>
 				<option value="cred">OAuth/2 Client credentials</option>
 				<option value="saml">SAML</option>
 			</select>
-			<div >
-				<label for="reg_name">User friendly name</label>
-				<input type="text" id="reg_name">
-			</div>
 		</div>
 		<div id="reg_redirect_div" style="display:none;">
 			<label for="reg_redirect">Redirect url</label>
-			<input type="text" id="reg_redirect" placeholder="https://portal.skoda-auto.com/callback*, vwg.skoda.oneapp">
+			<input type="text" id="reg_redirect" size="60" placeholder="https://portal.skoda-auto.com/callback*, vwg.skoda.oneapp">
 		</div>
 		<div id="reg_cert_div" style="display:none;">
 			<label for="reg_cert">Application certificate DN</label>
-			<input type="text" id="reg_cert">
+			<input type="text" id="reg_cert" size="60">
 		</div>
 		<div id="reg_auth_div" style="display:none;">
 			<label for="reg_auth">Authentication method</label>
-			<select id="reg_auth">
+			<select id="reg_auth" style="width:400px;">
 				<option value="">--Please choose an option--</option>
 				<option value="pki">Strong (PKI only)</option>
 				<option value="mfa">Medium (PKI or Virtual SmartCard or Username + Password + TOTP)</option>
@@ -79,6 +79,7 @@
 			<button id="reg_add" onClick="createClient(this)">Create new registration</button>
 		</div>
 	</div>
+	
     <script>
 	const authServerEndpoint = "https://identity.skoda.vwgroup.com/realms/standard/protocol/openid-connect/";
 	const apiEndpoint = "https://keycloak-portal-backend20221121150842.azurewebsites.net/";
@@ -408,8 +409,6 @@
 				document.getElementById('ProtocolDiv').style.display = 'block';
 			}
 		}
-
-
 
     </script>
   </body>
