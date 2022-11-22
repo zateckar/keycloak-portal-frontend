@@ -214,7 +214,7 @@
 			const response = await fetch(apiEndpoint + "clients",
 			{
 				method: "GET",
-				headers: {"Content-type": "application/json", "Ocp-Apim-Subscription-Key": "763951daeda74b589839b5aa605e02f6", "Authorization": "Bearer " + window.sessionStorage.getItem("accessToken")}
+				headers: {"Content-type": "application/json", "Authorization": "Bearer " + window.sessionStorage.getItem("accessToken")}
 			});
 
 			if (!response.ok) {
@@ -264,7 +264,7 @@
 			const response = await fetch(apiEndpoint + "applications",
 			{
 				method: "GET",
-				headers: {"Content-type": "application/json", "Ocp-Apim-Subscription-Key": "763951daeda74b589839b5aa605e02f6", "Authorization": "Bearer " + window.sessionStorage.getItem("accessToken")}
+				headers: {"Content-type": "application/json", "Authorization": "Bearer " + window.sessionStorage.getItem("accessToken")}
 			});
 
 			if (!response.ok) {
@@ -302,7 +302,7 @@
 			const response = await fetch(apiEndpoint + "clients",
 			{
 				method: "POST",
-				headers: {"Content-type": "application/json", "Ocp-Apim-Subscription-Key": "763951daeda74b589839b5aa605e02f6", "Authorization": "Bearer " + window.sessionStorage.getItem("accessToken")},
+				headers: {"Content-type": "application/json", "Authorization": "Bearer " + window.sessionStorage.getItem("accessToken")},
 				body: JSON.stringify(data)
 			});
 
@@ -330,7 +330,7 @@
 					const response = await fetch(apiEndpoint + "clients/" + clientid,
 					{
 						method: "DELETE",
-						headers: {"Content-type": "application/json", "Ocp-Apim-Subscription-Key": "763951daeda74b589839b5aa605e02f6", "Authorization": "Bearer " + window.sessionStorage.getItem("accessToken")}
+						headers: {"Content-type": "application/json", "Authorization": "Bearer " + window.sessionStorage.getItem("accessToken")}
 					});
 
 					if (!response.ok) {
@@ -391,7 +391,6 @@
 
 		function ApplicationSelected(application) {
 			var selVal = application.value;
-
 
 			if(selVal == "")
 			{
