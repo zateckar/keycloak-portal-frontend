@@ -51,6 +51,10 @@
 				<option value="cred">OAuth/2 Client credentials</option>
 				<option value="saml">SAML</option>
 			</select>
+			<div >
+				<label for="reg_name">User friendly name</label>
+				<input type="text" id="reg_name">
+			</div>
 		</div>
 		<div id="reg_redirect_div" style="display:none;">
 			<label for="reg_redirect">Redirect url</label>
@@ -96,19 +100,19 @@
                     var response = xhr.response;
 
                     if (xhr.status == 200) {
-			token_issued_time = Date.now();
-			access_token = atob(response.access_token.split('.')[1]);
-			window.sessionStorage.setItem("accessToken", response.access_token);
+						token_issued_time = Date.now();
+						access_token = atob(response.access_token.split('.')[1]);
+						window.sessionStorage.setItem("accessToken", response.access_token);
 
-			refresh_token = atob(response.refresh_token.split('.')[1]);
-			window.sessionStorage.setItem("refreshToken", response.refresh_token);
-			id_token = response.id_token;
+						refresh_token = atob(response.refresh_token.split('.')[1]);
+						window.sessionStorage.setItem("refreshToken", response.refresh_token);
+						id_token = response.id_token;
 
-			var id_token_string = atob(response.id_token.split('.')[1]);
-			document.getElementById('logoutButton').style.display = 'inline';
+						var id_token_string = atob(response.id_token.split('.')[1]);
+						document.getElementById('logoutButton').style.display = 'inline';
 
-			await fetchClients();
-			await fetchApplications();
+						await fetchClients();
+						await fetchApplications();
                     }
                     else {
                         access_token = "Error: " + response.error_description + " (" + response.error + ")";
@@ -183,7 +187,6 @@
 		async function refreshToken() 
 		{
 			let access_token_age = (Date.now() - token_issued_time) / 1000;
-			
 			if(access_token_age > 200)
 			{
 				const response = await fetch(authServerEndpoint + "token",
@@ -288,7 +291,6 @@
 
 		async function createClient()
 		{
-
 			const redirArray = new Array(document.getElementById("reg_redirect").value);
 
 			var data = {
@@ -296,6 +298,7 @@
 				protocol: document.getElementById("reg_protocol").value,
 				redirectUris: document.getElementById("reg_redirect").value.split(","),
 				flow: document.getElementById("reg_auth").value,
+				name: document.getElementById("reg_name").value
 			};
 
 			let refresh = await refreshToken();
